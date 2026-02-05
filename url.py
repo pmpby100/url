@@ -388,5 +388,4 @@ hide_streamlit_style = """
     header {visibility: hidden; height: 0%;}
 </style>
 
-st.title("프로필 숨긴 화면")
 
