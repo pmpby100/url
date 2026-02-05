@@ -387,7 +387,6 @@ hide_streamlit_style = """
     /* 상단 헤더 숨기기 */
     header {visibility: hidden; height: 0%;}
 </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 st.title("프로필 숨긴 화면")
+
