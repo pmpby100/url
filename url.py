@@ -4,7 +4,17 @@ from bs4 import BeautifulSoup
 import time
 import json
 import re
+import streamlit as st
 
+# CSS를 사용하여 푸터, 메뉴, 헤더 숨기기
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 def parse_apollo_data(soup):
     """
@@ -370,6 +380,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
