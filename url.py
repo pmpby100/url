@@ -4,6 +4,29 @@ from bs4 import BeautifulSoup
 import time
 import json
 import re
+import streamlit as st
+
+# 페이지 설정 (반드시 가장 첫 줄에 있어야 함)
+# st.set_page_config(...) 
+
+# CSS를 사용하여 우측 하단 배지 숨기기
+hide_streamlit_style = """
+<style>
+    /* 우측 하단 Viewer Badge 숨기기 */
+    .viewerBadge_container__1QSob {display: none;}
+    .styles_viewerBadge__1yB5_ {display: none;}
+    .viewerBadge_link__1S137 {display: none;}
+    .viewerBadge_text__1JaDK {display: none;}
+    
+    /* (선택) 상단 햄버거 메뉴 숨기기 */
+    #MainMenu {visibility: hidden;}
+    
+    /* (선택) 하단 'Made with Streamlit' 푸터 숨기기 */
+    footer {visibility: hidden;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 
 def parse_apollo_data(soup):
     """
@@ -369,17 +392,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-import streamlit as st
-
-# GitHub 아이콘 숨기기
-st.markdown("""
-    <style>
-    #GithubIcon {
-        visibility: hidden;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
 
 
