@@ -370,13 +370,24 @@ def main():
 if __name__ == "__main__":
     main()
 
-# CSS를 사용하여 메뉴와 푸터 숨기기
-hide_github_icon = """
-    <style>
-    .css-1jc7ptx, .e1ewe7hr3, .viewerBadge_container__1QSob, .styles_viewerBadge__1yB5_, .viewerBadge_link__1S137, .viewerBadge_text__1JaDK { display: none; } # 헤더, 푸터 숨기기
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
+import streamlit as st
+
+# 프로필 아이콘(Lower right), 햄버거 메뉴, 푸터 숨기기
+hide_streamlit_style = """
+<style>
+    /* 프로필 아이콘 및 우측 하단 요소 숨기기 */
+    [data-testid="stStatusWidget"] {visibility: hidden; height: 0%;}
+    
+    /* 햄버거 메뉴 숨기기 */
+    #MainMenu {visibility: hidden; height: 0%;}
+    
+    /* "Made with Streamlit" 푸터 숨기기 */
+    footer {visibility: hidden; height: 0%;}
+    
+    /* 상단 헤더 숨기기 */
+    header {visibility: hidden; height: 0%;}
+</style>
 """
-st.markdown(hide_github_icon, unsafe_allow_html=True)
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+st.title("프로필 숨긴 화면")
