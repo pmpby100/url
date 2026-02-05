@@ -372,21 +372,15 @@ if __name__ == "__main__":
 
 import streamlit as st
 
-# GitHub 아이콘 및 "Made with Streamlit" 푸터 숨기기
-hide_github_icon = """
+# GitHub 아이콘 숨기기
+st.markdown("""
     <style>
     #GithubIcon {
         visibility: hidden;
     }
-    footer {
-        visibility: hidden;
-    }
-    .viewerBadge_link__1S137 {
-        display: none;
-    }
     </style>
-"""
-st.markdown(hide_github_icon, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
 
 
 
