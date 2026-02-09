@@ -2,74 +2,12 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import time
-import json
-import re
-import streamlit as st
-
-# CSS를 사용하여 푸터, 메뉴, 헤더 숨기기
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
-def parse_apollo_data(soup):
-    """
-    Parses ApolloSSRDataTransport scripts to extract product data.
-    Returns a dict: {code: {'code': str, 'name': str, 'image': str}}
-    """
-    products_db = {}
-    scripts = soup.find_all('script')
-    # Filter valid scripts first
-    apollo_scripts = [s for s in scripts if s.string and 'ApolloSSRDataTransport' in s.string]
-    
-    for script in apollo_scripts:
-        content = script.string
-        try:
-            # Find start of push(
-            start_idx = content.find('.push(')
-            if start_idx == -1: continue
-            
-            start_json = start_idx + 6
-            end_json = content.rfind(')')
-            
-            json_str = content[start_json:end_json]
-            # Fix JS object literal to valid JSON
-            json_str = json_str.replace('undefined', 'null')
-            
-            data = json.loads(json_str)
-            
-            # Recursive search for products
-            def search_for_products(obj):
-               if isinstance(obj, dict):
-                    if '__typename' in obj and obj['__typename'] == 'Product':
-                         code = obj.get('code')
-                         name = obj.get('name')
-                         img = obj.get('representationImage')
-                         
-                         if code:
-                             products_db[code] = {'code': code, 'name': name, 'image': img}
-                             
-                    for k, v in obj.items():
-                        search_for_products(v)
-               elif isinstance(obj, list):
-                    for item in obj:
-                        search_for_products(item)
-                        
-            search_for_products(data)
-            
-        except Exception as e:
-            continue
-            
-    return products_db
+from st_copy_to_clipboard import st_copy_to_clipboard
 
 def extract_product_urls(url):
     """
     Extracts product URLs and thumbnails from the given Kolon Mall URL.
-    Returns a list of dictionaries: {'code': str, 'image': str, 'name': str}.
+    Returns a list of dictionaries: {'code': str, 'image': str}.
     """
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -82,15 +20,11 @@ def extract_product_urls(url):
         # verify=False added to bypass SSL certificate verification errors
         response = requests.get(url, headers=headers, timeout=10, verify=False)
         response.raise_for_status()
-        response.encoding = 'utf-8' # Force generic UTF-8 encoding to fix Mojibake
         
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 1. Parse Apollo Data (Client Side State)
-        apollo_products = parse_apollo_data(soup)
-        
-        # 2. Parse HTML Data (Server Side Rendered Links)
-        html_products = {}
+        products = []
+        # Find all anchor tags
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href']
             # Check if '/Product/' is in the href
@@ -105,30 +39,34 @@ def extract_product_urls(url):
                     img_url = img_tag.get('src') if img_tag else None
                     product_name = img_tag.get('alt') if img_tag else "Unknown Product"
                     
-                    # Accumulate (using code as key prevents duplicates locally)
-                    html_products[code] = {'code': code, 'image': img_url, 'name': product_name}
+                    # If no image in anchor, sometimes it's a sibling or structured differently. 
+                    # But for now assuming standard structure where <a> wraps the card.
+                    
+                    products.append({'code': code, 'image': img_url, 'name': product_name})
         
-        # 3. Merge Strategies
-        # Convert HTML map to list to preserve server-render order if possible, 
-        # but inject Apollo data where missing.
-        final_list = []
-        html_codes = set(html_products.keys())
-        apollo_codes = set(apollo_products.keys())
+        # Regex Fallback: Scan text for any other Product/CODE patterns
+        # This catches products in JSON blobs or non-standard tags
+        import re
+        # Pattern: /Product/ followed by alphanumeric code
+        # We assume codes are at least 5 chars to avoid short noise if any
+        regex_codes = re.findall(r'/Product/([A-Z0-9]+)', response.text)
         
-        # If Apollo has significantly more items, use Apollo as base but try to respect HTML order?
-        # Actually, if Top items are missing from HTML, we should use Apollo source as primary for those.
+        existing_codes = {p['code'] for p in products}
         
-        # Simple Merge: Use Apollo as master source if available, otherwise HTML.
-        # Use HTML keys order + Apollo-only keys appended?
-        # OR just use Apollo keys if Apollo is successful (since it likely has everything).
+        for code in regex_codes:
+            if code not in existing_codes:
+                products.append({'code': code, 'image': None, 'name': "Detected by Text Scan"})
+                existing_codes.add(code)
         
-        if apollo_products:
-            # Apollo usually contains everything.
-            # But we don't know the sort order in Apollo dict (it's insertion order of recursion).
-            # Let's assume recursion order is reasonably page-order.
-            return list(apollo_products.values())
-        else:
-            return list(html_products.values())
+        # Deduplicate while preserving order (based on code)
+        seen = set()
+        unique_products = []
+        for p in products:
+            if p['code'] not in seen:
+                unique_products.append(p)
+                seen.add(p['code'])
+                
+        return unique_products or []
 
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching URL: {e}")
@@ -247,35 +185,20 @@ def main():
             )
             
         with col2:
-            if st.button("전체 복사", width="stretch"):
-                try:
-                    import pyperclip
-                    pyperclip.copy(data_str_all)
-                    st.toast("결과값 전체 보고사 완료", icon="✅")
-                except ImportError:
-                    st.error("pyperclip module not installed.")
-                except Exception as e:
-                    st.error(f"Copy failed: {e}")
-                    
+            st_copy_to_clipboard(data_str_all, "전체 복사", "복사 완료! ✅")
+
         with col3:
-            if st.button("선택 복사", width="stretch"):
-                # Filter selected products based on session state
-                # keys are like "select_{code}"
-                selected_codes = []
-                for p in products:
-                    if st.session_state.get(f"select_{p['code']}", False):
-                        selected_codes.append(p['code'])
-                
-                if selected_codes:
-                    data_str_selected = "\n".join(selected_codes)
-                    try:
-                        import pyperclip
-                        pyperclip.copy(data_str_selected)
-                        st.toast("결과값 선택 복사 완료", icon="✅")
-                    except Exception as e:
-                        st.error(f"Copy failed: {e}")
-                else:
-                    st.warning("선택된 상품이 없습니다.")
+            # Calculate selected codes first
+            selected_codes = []
+            for p in products:
+                if st.session_state.get(f"select_{p['code']}", False):
+                    selected_codes.append(p['code'])
+
+            if selected_codes:
+                data_str_selected = "\n".join(selected_codes)
+                st_copy_to_clipboard(data_str_selected, "선택 복사", "복사 완료! ✅")
+            else:
+                st.button("선택 복사", disabled=True, key="copy_sel_disabled", help="선택된 상품이 없습니다.")
 
         st.markdown("---")
 
@@ -380,9 +303,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
